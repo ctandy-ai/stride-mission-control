@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STRIDE — Mission Control</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne+Mono&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c0f;
+    --surface: #10141a;
+    --surface2: #161c24;
+    --border: #1e2730;
+    --border-bright: #2a3545;
+    --amber: #f5a623;
+    --amber-dim: #7a5210;
+    --green: #2ecc71;
+    --green-dim: #164a2d;
+    --red: #e74c3c;
+    --red-dim: #4a1410;
+    --blue: #4a9eff;
+    --blue-dim: #102040;
+    --text: #c8d8e8;
+    --text-dim: #5a7080;
+    --text-bright: #eaf2ff;
+    --mono: 'Syne Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --display: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.03) 2px,
+      rgba(0,0,0,0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 32px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .logo-mark {
+    width: 36px;
+    height: 36px;
+    background: var(--amber);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  }
+
+  .logo-mark span {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 14px;
+    color: #000;
+  }
+
+  .header-title h1 {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 16px;
+    color: var(--text-bright);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .header-title p {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .live-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--green);
+  }
+
+  .pulse {
+    width: 8px;
+    height: 8px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(46,204,113,0.4); }
+    50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(46,204,113,0); }
+  }
+
+  #clock {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--amber);
+    letter-spacing: 0.05em;
+  }
+
+  .deadline-badge {
+    background: var(--red-dim);
+    border: 1px solid var(--red);
+    color: var(--red);
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 4px 10px;
+    letter-spacing: 0.06em;
+    animation: flashBorder 3s infinite;
+  }
+
+  @keyframes flashBorder {
+    0%, 90%, 100% { border-color: var(--red); }
+    45% { border-color: rgba(231,76,60,0.3); }
+  }
+
+  /* MAIN LAYOUT */
+  main {
+    display: grid;
+    grid-template-columns: 1fr 1fr 320px;
+    grid-template-rows: auto auto auto;
+    gap: 1px;
+    background: var(--border);
+    min-height: calc(100vh - 73px);
+  }
+
+  .panel {
+    background: var(--surface);
+    padding: 24px;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .panel-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-label::before {
+    content: '';
+    width: 3px;
+    height: 12px;
+    background: var(--amber);
+  }
+
+  /* AGENTS PANEL */
+  .agents-panel {
+    grid-column: 1 / 3;
+  }
+
+  .agents-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .agent-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 16px;
+    position: relative;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s;
+  }
+
+  .agent-card:hover {
+    border-color: var(--border-bright);
+    transform: translateY(-1px);
+  }
+
+  .agent-card.active {
+    border-color: var(--green-dim);
+    background: linear-gradient(135deg, #0f1c14 0%, var(--surface2) 100%);
+  }
+
+  .agent-card.active::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--green);
+  }
+
+  .agent-card.building {
+    border-color: var(--amber-dim);
+    background: linear-gradient(135deg, #1a130a 0%, var(--surface2) 100%);
+  }
+
+  .agent-card.building::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--amber);
+    animation: buildProgress 2s ease-in-out infinite;
+  }
+
+  @keyframes buildProgress {
+    0% { width: 0%; right: auto; }
+    50% { width: 100%; right: auto; }
+    51% { right: 0; left: auto; width: 100%; }
+    100% { width: 0%; right: 0; left: auto; }
+  }
+
+  .agent-card.planned {
+    opacity: 0.4;
+    border-style: dashed;
+  }
+
+  .agent-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+
+  .agent-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 14px;
+    color: #000;
+  }
+
+  .avatar-green { background: var(--green); }
+  .avatar-amber { background: var(--amber); }
+  .avatar-blue { background: var(--blue); }
+  .avatar-dim { background: var(--border-bright); color: var(--text-dim); }
+
+  .agent-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 4px;
+  }
+
+  .dot-green { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
+  .dot-amber { background: var(--amber); box-shadow: 0 0 8px var(--amber); animation: pulse 2.5s infinite; }
+  .dot-dim { background: var(--border-bright); }
+
+  .agent-name {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text-bright);
+    margin-bottom: 2px;
+  }
+
+  .agent-role {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .agent-task {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 10px;
+    line-height: 1.5;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+  }
+
+  .agent-task strong {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  /* WORKSTREAMS PANEL */
+  .workstreams-panel {
+    grid-column: 1 / 2;
+  }
+
+  .workstream-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    transition: border-color 0.2s;
+  }
+
+  .workstream-item:hover {
+    border-color: var(--border-bright);
+  }
+
+  .priority-flag {
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 3px 7px;
+    letter-spacing: 0.08em;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .flag-red { background: var(--red-dim); color: var(--red); border: 1px solid var(--red); }
+  .flag-amber { background: var(--amber-dim); color: var(--amber); border: 1px solid var(--amber); }
+  .flag-blue { background: var(--blue-dim); color: var(--blue); border: 1px solid var(--blue); }
+
+  .workstream-content { flex: 1; }
+
+  .workstream-title {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-bright);
+    margin-bottom: 3px;
+  }
+
+  .workstream-detail {
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .workstream-meta {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+  }
+
+  .meta-tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    background: var(--border);
+    padding: 2px 6px;
+  }
+
+  .meta-tag.deadline {
+    color: var(--red);
+    background: var(--red-dim);
+  }
+
+  /* MEMORY / ACTIVITY PANEL */
+  .activity-panel {
+    grid-column: 2 / 3;
+  }
+
+  .memory-loader {
+    border: 1px dashed var(--border-bright);
+    padding: 16px;
+    margin-bottom: 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .memory-loader:hover {
+    border-color: var(--amber);
+    background: rgba(245,166,35,0.03);
+  }
+
+  .memory-loader input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .memory-loader-text {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+  }
+
+  .memory-loader-text span {
+    color: var(--amber);
+    display: block;
+    font-size: 18px;
+    margin-bottom: 4px;
+  }
+
+  .memory-content {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 14px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    line-height: 1.8;
+    max-height: 260px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    display: none;
+  }
+
+  .memory-content.visible { display: block; }
+
+  .memory-content::-webkit-scrollbar { width: 4px; }
+  .memory-content::-webkit-scrollbar-track { background: var(--surface); }
+  .memory-content::-webkit-scrollbar-thumb { background: var(--border-bright); }
+
+  .activity-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .activity-item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .activity-time {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    margin-top: 2px;
+    min-width: 44px;
+  }
+
+  .activity-text {
+    font-size: 11px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  .activity-agent {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--amber);
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    grid-row: 1 / 4;
+    grid-column: 3 / 4;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar-section {
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* DEADLINE COUNTER */
+  .deadline-section {
+    background: linear-gradient(135deg, #1a0a0a 0%, var(--surface) 100%);
+  }
+
+  .countdown-display {
+    text-align: center;
+    padding: 16px 0;
+  }
+
+  .countdown-number {
+    font-family: var(--mono);
+    font-size: 48px;
+    color: var(--red);
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+
+  .countdown-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.14em;
+    margin-top: 6px;
+  }
+
+  .countdown-context {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-align: center;
+    line-height: 1.5;
+    margin-top: 8px;
+  }
+
+  .countdown-context strong {
+    color: var(--red);
+  }
+
+  /* KEY METRICS */
+  .metric-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .metric-row:last-child { border-bottom: none; }
+
+  .metric-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+  }
+
+  .metric-value {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .val-green { color: var(--green); }
+  .val-amber { color: var(--amber); }
+  .val-red { color: var(--red); }
+  .val-blue { color: var(--blue); }
+
+  /* NOTES */
+  .notes-area {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 12px;
+    resize: none;
+    height: 120px;
+    line-height: 1.6;
+    margin-top: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .notes-area:focus {
+    border-color: var(--amber);
+  }
+
+  .notes-area::placeholder {
+    color: var(--text-dim);
+  }
+
+  /* QUICK ACTIONS */
+  .action-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    margin-bottom: 6px;
+    transition: all 0.15s;
+  }
+
+  .action-btn:hover {
+    border-color: var(--amber);
+    color: var(--amber);
+    background: rgba(245,166,35,0.05);
+  }
+
+  .action-btn .btn-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  /* STATUS BAR */
+  .status-bar {
+    grid-column: 1 / 3;
+    background: var(--surface2);
+    border-top: 1px solid var(--border);
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border-bright); }
+
+  /* Animations */
+  .panel { animation: fadeIn 0.4s ease both; }
+  .agents-panel { animation-delay: 0.05s; }
+  .workstreams-panel { animation-delay: 0.1s; }
+  .activity-panel { animation-delay: 0.15s; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .agent-card {
+    animation: cardIn 0.4s ease both;
+  }
+
+  .agent-card:nth-child(1) { animation-delay: 0.1s; }
+  .agent-card:nth-child(2) { animation-delay: 0.15s; }
+  .agent-card:nth-child(3) { animation-delay: 0.2s; }
+  .agent-card:nth-child(4) { animation-delay: 0.25s; }
+  .agent-card:nth-child(5) { animation-delay: 0.3s; }
+  .agent-card:nth-child(6) { animation-delay: 0.35s; }
+
+  @keyframes cardIn {
+    from { opacity: 0; transform: scale(0.97); }
+    to { opacity: 1; transform: scale(1); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="logo-mark"><span>S</span></div>
+    <div class="header-title">
+      <h1>Stride — Mission Control</h1>
+      <p>AI AGENT OPERATIONS · CHRIS TANDY · DIRECTOR</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="deadline-badge">⚠ MAY 2026 DEADLINE ACTIVE</div>
+    <div class="live-indicator"><div class="pulse"></div> SYSTEM LIVE</div>
+    <div id="clock">--:--:--</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- AGENTS PANEL -->
+  <div class="panel agents-panel">
+    <div class="panel-header">
+      <div class="panel-label">Agent Roster</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim)">2 ACTIVE · 1 BUILDING · 3 PLANNED</div>
+    </div>
+    <div class="agents-grid">
+
+      <div class="agent-card active">
+        <div class="agent-card-top">
+          <div class="agent-avatar avatar-green">M</div>
+          <div class="agent-status-dot dot-green"></div>
+        </div>
+        <div class="agent-name">Mike</div>
+        <div class="agent-role">Chief Orchestrator</div>
+        <div class="agent-task"><strong>Current:</strong> Initialising — awaiting SOUL.md, USER.md, QMD install</div>
+      </div>
+
+      <div class="agent-card building">
+        <div class="agent-card-top">
+          <div class="agent-avatar avatar-amber">FC</div>
+          <div class="agent-status-dot dot-amber"></div>
+        </div>
+        <div class="agent-name">Finance</div>
+        <div class="agent-role">Finance & Compliance</div>
+        <div class="agent-task"><strong>In Build:</strong> ATO debt · OnDeck/Bizcap · Superannuation remediation · NRPP receivables</div>
+      </div>
+
+      <div class="agent-card planned">
+        <div class="agent-card-top">
+          <div class="agent-avatar avatar-dim">CL</div>
+          <div class="agent-status-dot dot-dim"></div>
+        </div>
+        <div class="agent-name">Clinical</div>
+        <div class="agent-role">Clinical & Compliance</div>
+        <div class="agent-task">AHPRA compliance · clinical protocols · staff onboarding</div>
+      </div>
+
+      <div class="agent-card planned">
+        <div class="agent-card-top">
+          <div class="agent-avatar avatar-dim">MK</div>
+          <div class="agent-status-dot dot-dim"></div>
+        </div>
+        <div class="agent-name">Marketing</div>
+        <div class="agent-role">Brand & Growth</div>
+        <div class="agent-task">Stride brand · content · athlete acquisition campaigns</div>
+      </div>
+
+      <div class="agent-card planned">
+        <div class="agent-card-top">
+          <div class="agent-avatar avatar-dim">PP</div>
+          <div class="agent-status-dot dot-dim"></div>
+        </div>
+        <div class="agent-name">P2P</div>
+        <div class="agent-role">Prepared to Play</div>
+        <div class="agent-task">Storm · Essendon · WSW Academy · Vuemotion reporting</div>
+      </div>
+
+      <div class="agent-card planned">
+        <div class="agent-card-top">
+          <div class="agent-avatar avatar-dim">MC</div>
+          <div class="agent-status-dot dot-dim"></div>
+        </div>
+        <div class="agent-name">MotionCode</div>
+        <div class="agent-role">Product & Content</div>
+        <div class="agent-task">Exercise video library · Kling AI pipeline · SaaS GTM</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <div class="sidebar-section deadline-section">
+      <div class="panel-label" style="margin-bottom:0">Critical Deadline</div>
+      <div class="countdown-display">
+        <div class="countdown-number" id="daysLeft">--</div>
+        <div class="countdown-label">DAYS REMAINING</div>
+      </div>
+      <div class="countdown-context">
+        <strong>Refinancing deadline</strong><br>
+        Family home mortgage · ATO debt<br>
+        OnDeck + Bizcap obligations
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="panel-label" style="margin-bottom:14px">System Status</div>
+      <div class="metric-row">
+        <div class="metric-label">OPENCLAW</div>
+        <div class="metric-value val-green">ONLINE</div>
+      </div>
+      <div class="metric-row">
+        <div class="metric-label">BRAVE SEARCH</div>
+        <div class="metric-value val-amber">CONFIGURING</div>
+      </div>
+      <div class="metric-row">
+        <div class="metric-label">GROQ / VOICE</div>
+        <div class="metric-value val-amber">PENDING</div>
+      </div>
+      <div class="metric-row">
+        <div class="metric-label">TELEGRAM</div>
+        <div class="metric-value val-green">CONNECTED</div>
+      </div>
+      <div class="metric-row">
+        <div class="metric-label">QMD SKILL</div>
+        <div class="metric-value val-red">NOT INSTALLED</div>
+      </div>
+      <div class="metric-row">
+        <div class="metric-label">SESSION MEMORY</div>
+        <div class="metric-value val-green">ENABLED</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="panel-label" style="margin-bottom:12px">Quick Actions</div>
+      <button class="action-btn" onclick="copyToClipboard('install the QMD skill')">
+        <span class="btn-icon">📦</span> Copy: Install QMD
+      </button>
+      <button class="action-btn" onclick="copyToClipboard('setup Groq, here is my API key: ')">
+        <span class="btn-icon">🎙</span> Copy: Setup Groq
+      </button>
+      <button class="action-btn" onclick="copyToClipboard('Your first job is to help me build a Finance & Compliance sub-agent. The priority workstreams are: ATO debt resolution, OnDeck and Bizcap lender management, superannuation remediation for affected staff, and financing options for AFL NRPP accounts receivable. We have a hard deadline of May 2026. Please draft the SOUL.md and context document for this agent.')">
+        <span class="btn-icon">💰</span> Copy: Build Finance Agent
+      </button>
+      <button class="action-btn" onclick="toggleStatusEdit()">
+        <span class="btn-icon">✏️</span> Edit Status Values
+      </button>
+    </div>
+
+    <div class="sidebar-section" style="flex:1">
+      <div class="panel-label" style="margin-bottom:12px">Mission Notes</div>
+      <textarea class="notes-area" placeholder="Session notes... ideas... things to tell Mike..."></textarea>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-top:6px">Saved locally in browser</div>
+    </div>
+
+  </div>
+
+  <!-- WORKSTREAMS PANEL -->
+  <div class="panel workstreams-panel">
+    <div class="panel-header">
+      <div class="panel-label">Active Workstreams</div>
+    </div>
+
+    <div class="workstream-item">
+      <div class="priority-flag flag-red">P1</div>
+      <div class="workstream-content">
+        <div class="workstream-title">AFL NRPP Insurance Dispute</div>
+        <div class="workstream-detail">Accounts receivable outstanding · Legal: Berrill Watson (John Berrill) · Broker misrepresentation by Josh Ward · Club relationship: Essendon Doutta Stars</div>
+        <div class="workstream-meta">
+          <span class="meta-tag">LEGAL ACTIVE</span>
+          <span class="meta-tag">FINANCIAL</span>
+          <span class="meta-tag">MARSH/ECHELON</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="workstream-item">
+      <div class="priority-flag flag-red">P1</div>
+      <div class="workstream-content">
+        <div class="workstream-title">Refinancing & Financial Stability</div>
+        <div class="workstream-detail">Family home mortgage · ATO debt · OnDeck + Bizcap obligations · Superannuation remediation · Impaired credit</div>
+        <div class="workstream-meta">
+          <span class="meta-tag deadline">MAY 2026</span>
+          <span class="meta-tag">ONDECK</span>
+          <span class="meta-tag">BIZCAP</span>
+          <span class="meta-tag">ATO</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="workstream-item">
+      <div class="priority-flag flag-amber">P2</div>
+      <div class="workstream-content">
+        <div class="workstream-title">Stride Website Redesign</div>
+        <div class="workstream-detail">Conversion-focused · Avatar-centric · Injury readiness RAG assessment hero · Target: athletes 18–35</div>
+        <div class="workstream-meta">
+          <span class="meta-tag">HTML ITERATION</span>
+          <span class="meta-tag">IN PROGRESS</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="workstream-item">
+      <div class="priority-flag flag-blue">P3</div>
+      <div class="workstream-content">
+        <div class="workstream-title">Motion Code — Exercise Video Library</div>
+        <div class="workstream-detail">Kling AI pipeline · Custom avatar · GTM strategy development · Indie SaaS growth model research</div>
+        <div class="workstream-meta">
+          <span class="meta-tag">KLING AI</span>
+          <span class="meta-tag">GTM PLANNING</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="workstream-item">
+      <div class="priority-flag flag-blue">P3</div>
+      <div class="workstream-content">
+        <div class="workstream-title">WSW Academy — Player Profiling</div>
+        <div class="workstream-detail">Vuemotion testing framework · U13–U21 · Coach Chris Abbott · Performance benchmarks</div>
+        <div class="workstream-meta">
+          <span class="meta-tag">PREPARED TO PLAY</span>
+          <span class="meta-tag">VUEMOTION</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MEMORY / ACTIVITY PANEL -->
+  <div class="panel activity-panel">
+    <div class="panel-header">
+      <div class="panel-label">Agent Memory</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim)">DROP FILE TO LOAD</div>
+    </div>
+
+    <div class="memory-loader" id="memoryLoader">
+      <input type="file" id="fileInput" accept=".md,.txt" onchange="loadMemoryFile(event)">
+      <div class="memory-loader-text">
+        <span>↑</span>
+        Load MEMORY.md · SOUL.md · SIGNALS.md
+      </div>
+    </div>
+
+    <div class="memory-content" id="memoryContent"></div>
+
+    <div class="activity-feed" id="activityFeed" style="margin-top:16px">
+      <div class="panel-label" style="margin-bottom:12px">Session Log</div>
+
+      <div class="activity-item">
+        <div class="activity-time">TODAY</div>
+        <div>
+          <div class="activity-agent">MIKE</div>
+          <div class="activity-text">OpenClaw onboarding complete. Telegram connected. Awaiting QMD install + Groq setup.</div>
+        </div>
+      </div>
+
+      <div class="activity-item">
+        <div class="activity-time">TODAY</div>
+        <div>
+          <div class="activity-agent">SYSTEM</div>
+          <div class="activity-text">Brave Search API configured. $5 monthly credit active. ~1,000 queries available.</div>
+        </div>
+      </div>
+
+      <div class="activity-item">
+        <div class="activity-time">TODAY</div>
+        <div>
+          <div class="activity-agent">SYSTEM</div>
+          <div class="activity-text">Mission Control deployed. Finance & Compliance agent build queued as next priority.</div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input type="text" id="logInput" placeholder="Add session note..." style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:10px;padding:8px 10px;outline:none;" onkeydown="if(event.key==='Enter')addLogEntry()">
+          <button onclick="addLogEntry()" style="background:var(--amber);border:none;color:#000;font-family:var(--mono);font-size:10px;padding:8px 12px;cursor:pointer;font-weight:600;">LOG</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATUS BAR -->
+  <div class="status-bar">
+    <div class="status-item"><div class="status-dot" style="background:var(--green)"></div> 2 agents online</div>
+    <div class="status-item"><div class="status-dot" style="background:var(--amber)"></div> 1 building</div>
+    <div class="status-item"><div class="status-dot" style="background:var(--border-bright)"></div> 3 planned</div>
+    <div class="status-item" style="margin-left:auto;color:var(--text-dim)">Last updated: <span id="lastUpdated">—</span></div>
+  </div>
+
+</main>
+
+<script>
+  // Clock
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent = now.toLocaleTimeString('en-AU', {hour12: false});
+    document.getElementById('lastUpdated').textContent = now.toLocaleTimeString('en-AU', {hour12: false});
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // Countdown to May 1 2026
+  function updateCountdown() {
+    const deadline = new Date('2026-05-01T00:00:00');
+    const now = new Date();
+    const diff = deadline - now;
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    const el = document.getElementById('daysLeft');
+    el.textContent = days > 0 ? days : 'PAST';
+    if (days <= 30) el.style.color = 'var(--red)';
+    else if (days <= 60) el.style.color = 'var(--amber)';
+  }
+  updateCountdown();
+
+  // Load memory file
+  function loadMemoryFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = document.getElementById('memoryContent');
+      content.textContent = e.target.result;
+      content.classList.add('visible');
+      document.getElementById('memoryLoader').style.display = 'none';
+    };
+    reader.readAsText(file);
+  }
+
+  // Copy to clipboard
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+      const btns = document.querySelectorAll('.action-btn');
+      // Brief flash feedback
+    });
+  }
+
+  // Add log entry
+  function addLogEntry() {
+    const input = document.getElementById('logInput');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const feed = document.getElementById('activityFeed');
+    const entry = document.createElement('div');
+    entry.className = 'activity-item';
+    const now = new Date().toLocaleTimeString('en-AU', {hour: '2-digit', minute: '2-digit', hour12: false});
+    entry.innerHTML = `
+      <div class="activity-time">${now}</div>
+      <div>
+        <div class="activity-agent">CHRIS</div>
+        <div class="activity-text">${text}</div>
+      </div>
+    `;
+    const logDiv = feed.querySelector('div[style*="border-top"]');
+    feed.insertBefore(entry, logDiv);
+    input.value = '';
+  }
+
+  // Save notes to localStorage
+  const notes = document.querySelector('.notes-area');
+  notes.value = localStorage.getItem('strideNotes') || '';
+  notes.addEventListener('input', () => {
+    localStorage.setItem('strideNotes', notes.value);
+  });
+
+  function toggleStatusEdit() {
+    const metrics = document.querySelectorAll('.metric-value');
+    metrics.forEach(m => {
+      if (m.contentEditable === 'true') {
+        m.contentEditable = 'false';
+        m.style.outline = 'none';
+      } else {
+        m.contentEditable = 'true';
+        m.style.outline = '1px solid var(--amber)';
+        m.style.padding = '2px 4px';
+      }
+    });
+  }
+</script>
+</body>
+</html>
