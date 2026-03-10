@@ -1,0 +1,25 @@
+{
+  "lastUpdated": "2026-03-10T18:27:00Z",
+  "statusBar": {
+    "agentsOnline": 2,
+    "agentsBuilding": 1,
+    "agentsPlanned": 3
+  },
+  "activityFeed": [
+    {
+      "time": "2026-03-10",
+      "agent": "MIKE",
+      "text": "Mission Control connected to GitHub. Status updates now live."
+    },
+    {
+      "time": "2026-03-10",
+      "agent": "SYSTEM",
+      "text": "Gemini embeddings configured. Memory search operational."
+    },
+    {
+      "time": "2026-03-10",
+      "agent": "SYSTEM",
+      "text": "OpenClaw onboarding complete. Telegram connected. QMD skill installed."
+    }
+  ]
+}

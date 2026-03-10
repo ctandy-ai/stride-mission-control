@@ -937,29 +937,7 @@
     <div class="activity-feed" id="activityFeed" style="margin-top:16px">
       <div class="panel-label" style="margin-bottom:12px">Session Log</div>
 
-      <div class="activity-item">
-        <div class="activity-time">TODAY</div>
-        <div>
-          <div class="activity-agent">MIKE</div>
-          <div class="activity-text">OpenClaw onboarding complete. Telegram connected. Awaiting QMD install + Groq setup.</div>
-        </div>
-      </div>
-
-      <div class="activity-item">
-        <div class="activity-time">TODAY</div>
-        <div>
-          <div class="activity-agent">SYSTEM</div>
-          <div class="activity-text">Brave Search API configured. $5 monthly credit active. ~1,000 queries available.</div>
-        </div>
-      </div>
-
-      <div class="activity-item">
-        <div class="activity-time">TODAY</div>
-        <div>
-          <div class="activity-agent">SYSTEM</div>
-          <div class="activity-text">Mission Control deployed. Finance & Compliance agent build queued as next priority.</div>
-        </div>
-      </div>
+      <div id="statusFeed"></div>
 
       <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
         <div style="display:flex;gap:8px;margin-top:8px">
@@ -972,15 +950,52 @@
 
   <!-- STATUS BAR -->
   <div class="status-bar">
-    <div class="status-item"><div class="status-dot" style="background:var(--green)"></div> 2 agents online</div>
-    <div class="status-item"><div class="status-dot" style="background:var(--amber)"></div> 1 building</div>
-    <div class="status-item"><div class="status-dot" style="background:var(--border-bright)"></div> 3 planned</div>
+    <div class="status-item"><div class="status-dot" style="background:var(--green)"></div> <span id="agentsOnline">—</span> agents online</div>
+    <div class="status-item"><div class="status-dot" style="background:var(--amber)"></div> <span id="agentsBuilding">—</span> building</div>
+    <div class="status-item"><div class="status-dot" style="background:var(--border-bright)"></div> <span id="agentsPlanned">—</span> planned</div>
     <div class="status-item" style="margin-left:auto;color:var(--text-dim)">Last updated: <span id="lastUpdated">—</span></div>
   </div>
 
 </main>
 
 <script>
+  // Load status.json
+  async function loadStatus() {
+    try {
+      const res = await fetch('status.json?t=' + Date.now());
+      const data = await res.json();
+
+      // Status bar
+      if (data.statusBar) {
+        document.getElementById('agentsOnline').textContent = data.statusBar.agentsOnline ?? '—';
+        document.getElementById('agentsBuilding').textContent = data.statusBar.agentsBuilding ?? '—';
+        document.getElementById('agentsPlanned').textContent = data.statusBar.agentsPlanned ?? '—';
+      }
+
+      // Last updated
+      if (data.lastUpdated) {
+        const d = new Date(data.lastUpdated);
+        document.getElementById('lastUpdated').textContent = d.toLocaleString('en-AU', {dateStyle:'short', timeStyle:'short'});
+      }
+
+      // Activity feed
+      if (data.activityFeed && data.activityFeed.length) {
+        const feed = document.getElementById('statusFeed');
+        feed.innerHTML = data.activityFeed.map(item => `
+          <div class="activity-item">
+            <div class="activity-time">${item.time}</div>
+            <div>
+              <div class="activity-agent">${item.agent}</div>
+              <div class="activity-text">${item.text}</div>
+            </div>
+          </div>`).join('');
+      }
+    } catch(e) {
+      console.warn('status.json not available:', e.message);
+    }
+  }
+  loadStatus();
+
   // Clock
   function updateClock() {
     const now = new Date();
